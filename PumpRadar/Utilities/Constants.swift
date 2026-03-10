@@ -36,7 +36,7 @@ enum Constants {
     // MARK: - Keychain
 
     enum Keychain {
-        static let authTokenKey = "com.pumprader.authToken"
+        static let authTokenKey = "com.pumpradar.authToken"
         static let refreshTokenKey = "com.pumpradar.refreshToken"
     }
 

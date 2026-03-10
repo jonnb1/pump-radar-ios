@@ -22,6 +22,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Restrict GITHUB_TOKEN permissions to the minimum required
+permissions:
+  contents: read
+
 env:
   XCODE_VERSION: "15.2"
   SCHEME: PumpRadar
