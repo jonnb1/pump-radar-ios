@@ -1,0 +1,51 @@
+name: PumpRadar
+options:
+  bundleIdPrefix: io.pump-radar
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    PRODUCT_BUNDLE_IDENTIFIER: io.pump-radar.app
+    DEVELOPMENT_TEAM: ""
+    SWIFT_STRICT_CONCURRENCY: minimal
+
+targets:
+  PumpRadar:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: PumpRadar
+        excludes:
+          - "**/*.md"
+    settings:
+      base:
+        INFOPLIST_FILE: PumpRadar/Resources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: io.pump-radar.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    scheme:
+      testTargets:
+        - PumpRadarTests
+
+  PumpRadarTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: PumpRadarTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.pump-radar.tests
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/PumpRadar.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PumpRadar
+    dependencies:
+      - target: PumpRadar

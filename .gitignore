@@ -1,0 +1,67 @@
+# .gitignore for PumpRadar iOS project
+
+# ── Xcode ──────────────────────────────────────────────────
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcworkspace/xcshareddata/
+
+# Generated Xcode project (recreated by XcodeGen)
+PumpRadar.xcodeproj/
+
+# Build output
+DerivedData/
+build/
+*.o
+*.d
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.moved-aside
+
+# Test results
+TestResults/
+
+# Playground
+playground.xcworkspace
+
+# ── Swift Package Manager ───────────────────────────────────
+.build/
+.swiftpm/
+*.resolved
+
+# ── CocoaPods ───────────────────────────────────────────────
+Pods/
+Podfile.lock
+
+# ── Carthage ────────────────────────────────────────────────
+Carthage/Build/
+
+# ── fastlane ────────────────────────────────────────────────
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ── macOS ───────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ── Xcode user data ─────────────────────────────────────────
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# ── Misc ────────────────────────────────────────────────────
+*.swp
+*.bak
+*~
+.idea/
+.vscode/
