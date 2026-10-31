@@ -76,7 +76,7 @@ final class DecodingTests: XCTestCase {
             }]
           }]
         }
-        """.data(using: .utf8)!
+        """.utf8Data
         let board = try RadarJSON.decodeBoard(json)
         let row = try XCTUnwrap(board.rows.first)
         XCTAssertEqual(row.symbol, "SOL")
@@ -91,14 +91,14 @@ final class DecodingTests: XCTestCase {
         {"success": true, "data": {"sample": true, "rows": [
           {"symbol": "ADA", "name": "Cardano", "score": 10, "why": "Quiet."}
         ]}}
-        """.data(using: .utf8)!
+        """.utf8Data
         let board = try RadarJSON.decodeBoard(envelope)
         XCTAssertTrue(board.sample)
         XCTAssertEqual(try XCTUnwrap(board.rows.first).symbol, "ADA")
 
         let array = """
         [{"symbol": "DOT", "name": "Polkadot", "score": "15", "why": "Quiet."}]
-        """.data(using: .utf8)!
+        """.utf8Data
         let fromArray = try RadarJSON.decodeBoard(array)
         XCTAssertEqual(try XCTUnwrap(fromArray.rows.first).score, 15)
     }
@@ -118,7 +118,7 @@ final class DecodingTests: XCTestCase {
             }
           }
         }]}
-        """.data(using: .utf8)!
+        """.utf8Data
         let row = try XCTUnwrap(RadarJSON.decodeBoard(json).rows.first)
         let signal = try XCTUnwrap(row.signals.first)
         XCTAssertEqual(signal.family, "funding")
@@ -136,7 +136,7 @@ final class DecodingTests: XCTestCase {
           "ticker": "abc",
           "time": "2026-10-31T15:00:00Z"
         }]}
-        """.data(using: .utf8)!
+        """.utf8Data
         let page = try RadarJSON.decodeEvents(json)
         let event = try XCTUnwrap(page.events.first)
         XCTAssertEqual(event.kind, .other)
@@ -149,7 +149,7 @@ final class DecodingTests: XCTestCase {
     func testSingleSnapshotObject() throws {
         let json = """
         {"symbol": "tia", "points": [{"price": 5.1}, {"price": 5.6}]}
-        """.data(using: .utf8)!
+        """.utf8Data
         let series = try RadarJSON.decodeSnapshots(json)
         XCTAssertEqual(series.count, 1)
         let only = try XCTUnwrap(series.first)

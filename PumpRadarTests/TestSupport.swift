@@ -4,6 +4,11 @@
 import XCTest
 @testable import PumpRadar
 
+extension String {
+    /// UTF-8 bytes for JSON fixtures. Avoids the optional `data(using:)` conversion.
+    var utf8Data: Data { Data(utf8) }
+}
+
 enum TestSupport {
     static func defaults() throws -> UserDefaults {
         let name = "PumpRadar.\(UUID().uuidString)"

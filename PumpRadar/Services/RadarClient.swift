@@ -55,6 +55,7 @@ enum RadarPaths {
 }
 
 enum RadarClientFactory {
+    @MainActor
     static func make(settings: AppSettings) -> RadarClient {
         if settings.demoMode {
             return DemoRadarClient()
