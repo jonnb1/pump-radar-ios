@@ -1,0 +1,66 @@
+{
+  "sample": true,
+  "sample_label": "Sample data — not live market readings",
+  "events": [
+    {
+      "id": "sample-pepe-listing",
+      "kind": "listing",
+      "title": "PEPE listed on a major spot venue",
+      "summary": "Sample: a new spot listing was recorded six hours ago. Listings often bring a short burst of attention, then quiet down.",
+      "symbol": "PEPE",
+      "occurred_at": "2026-10-31T09:00:00Z",
+      "family": "listings",
+      "source": "Sample feed"
+    },
+    {
+      "id": "sample-wif-buzz",
+      "kind": "buzz_spike",
+      "title": "WIF mentions jumped on X",
+      "summary": "Sample: posts mentioning WIF are about four times the past week's pace. Attention spikes fade.",
+      "symbol": "WIF",
+      "occurred_at": "2026-10-31T13:30:00Z",
+      "family": "buzz",
+      "source": "Sample feed"
+    },
+    {
+      "id": "sample-btc-etf-in",
+      "kind": "etf_flow",
+      "title": "Bitcoin spot ETFs had a large inflow day",
+      "summary": "Sample: funds added coins today. An inflow day is one reading, not a promise that price follows.",
+      "symbol": "BTC",
+      "occurred_at": "2026-10-31T12:00:00Z",
+      "family": "etf_flows",
+      "source": "Sample feed"
+    },
+    {
+      "id": "sample-eth-etf-out",
+      "kind": "etf_flow",
+      "title": "Ether spot ETFs had an outflow day",
+      "summary": "Sample: funds removed coins today. Outflows are shown the same way as inflows. The board does not hide the quiet or negative days.",
+      "symbol": "ETH",
+      "occurred_at": "2026-10-31T12:05:00Z",
+      "family": "etf_flows",
+      "source": "Sample feed"
+    },
+    {
+      "id": "sample-fet-buzz",
+      "kind": "buzz",
+      "title": "FET conversation picked up",
+      "summary": "Sample: mentions are higher than usual, but not at the extreme end of this coin's history.",
+      "symbol": "FET",
+      "occurred_at": "2026-10-30T18:00:00Z",
+      "family": "buzz",
+      "source": "Sample feed"
+    },
+    {
+      "id": "sample-tia-book",
+      "kind": "order_book",
+      "title": "TIA bids are heavier than asks near the price",
+      "summary": "Sample: the book is lopsided within about 2% of the price. Resting orders can be pulled.",
+      "symbol": "TIA",
+      "occurred_at": "2026-10-31T14:10:00Z",
+      "family": "order_book",
+      "source": "Sample feed"
+    }
+  ]
+}

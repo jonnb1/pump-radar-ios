@@ -1,74 +1,83 @@
 // CoinDetailViewModel.swift
-// PumpRadar
-//
-// Fetches full details for a single coin and manages the watchlist toggle
-// action for the detail screen.
+// One coin: the sentence, the scorecard, related events, and a price path when one exists.
 
-import Foundation
 import Combine
-
-// MARK: - CoinDetailViewModel
+import Foundation
 
 @MainActor
 final class CoinDetailViewModel: ObservableObject {
+    @Published private(set) var row: BoardRow
+    @Published private(set) var events: [RadarEvent] = []
+    @Published private(set) var sparkline: [Double]
+    @Published private(set) var families: [SignalFamily]
+    @Published private(set) var isLoading = false
+    @Published private(set) var note: String?
 
-    // MARK: - Published State
+    let watchlist: WatchlistStore
+    private let settings: AppSettings
+    private let clientOverride: RadarClient?
 
-    @Published var coin: Coin
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    @Published var isAddingToWatchlist = false
-
-    // MARK: - Dependencies
-
-    private let apiService: APIServiceProtocol
-    private var cancellables = Set<AnyCancellable>()
-
-    // MARK: - Initialiser
-
-    init(coin: Coin, apiService: APIServiceProtocol = APIService()) {
-        self.coin = coin
-        self.apiService = apiService
+    init(
+        row: BoardRow,
+        families: [SignalFamily] = SignalFamily.builtins,
+        settings: AppSettings,
+        watchlist: WatchlistStore,
+        client: RadarClient? = nil
+    ) {
+        self.row = row
+        self.families = families.isEmpty ? SignalFamily.builtins : families
+        self.sparkline = row.sparkline
+        self.settings = settings
+        self.watchlist = watchlist
+        self.clientOverride = client
     }
 
-    // MARK: - Actions
+    var why: String {
+        PlainEnglish.why(for: row, families: families)
+    }
 
-    /// Reloads the latest data for this coin from the API.
-    func refresh() {
+    var scorecard: Scorecard {
+        ScorecardBuilder.make(row: row, families: families)
+    }
+
+    var firedSignals: [SignalReading] {
+        row.signals.filter(\.fired)
+    }
+
+    func toggleWatch() {
+        watchlist.toggle(row.symbol)
+    }
+
+    func load() async {
         isLoading = true
-        errorMessage = nil
-        apiService.fetchCoin(id: coin.id)
-            .sink { [weak self] completion in
-                self?.isLoading = false
-                if case .failure(let error) = completion {
-                    self?.errorMessage = error.errorDescription
+        note = nil
+        defer { isLoading = false }
+        let client = clientOverride ?? RadarClientFactory.make(settings: settings)
+        if let page = try? await client.fetchEvents() {
+            events = page.events.filter { event in
+                guard let symbol = event.symbol else {
+                    return false
                 }
-            } receiveValue: { [weak self] updatedCoin in
-                self?.coin = updatedCoin
+                return symbol.caseInsensitiveCompare(row.symbol) == .orderedSame
             }
-            .store(in: &cancellables)
+        }
+        if sparkline.count < 2 {
+            await loadSparkline(using: client)
+        }
+        if let latest = try? await client.fetchFamilies(), !latest.isEmpty {
+            families = latest
+        }
     }
 
-    /// Adds or removes the coin from the watchlist, toggling the local state
-    /// optimistically so the UI responds immediately.
-    func toggleWatchlist() {
-        isAddingToWatchlist = true
-        let publisher: AnyPublisher<Void, APIError> = coin.isFavorite
-            ? apiService.removeFromWatchlist(coinId: coin.id)
-            : apiService.addToWatchlist(coinId: coin.id)
-
-        // Optimistic update
-        coin.isFavorite.toggle()
-
-        publisher
-            .sink { [weak self] completion in
-                self?.isAddingToWatchlist = false
-                if case .failure(let error) = completion {
-                    // Revert optimistic update on failure
-                    self?.coin.isFavorite.toggle()
-                    self?.errorMessage = error.errorDescription
-                }
-            } receiveValue: { _ in }
-            .store(in: &cancellables)
+    private func loadSparkline(using client: RadarClient) async {
+        do {
+            let series = try await client.fetchSnapshots(symbol: row.symbol)
+            let prices = series.points.compactMap(\.price)
+            if prices.count >= 2 {
+                sparkline = prices
+            }
+        } catch {
+            note = "A price path was not available."
+        }
     }
 }

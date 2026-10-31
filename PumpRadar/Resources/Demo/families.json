@@ -1,0 +1,54 @@
+{
+  "sample": true,
+  "sample_label": "Sample data — not live market readings",
+  "families": [
+    {
+      "id": "listings",
+      "name": "Listings",
+      "description": "A new exchange listing, or a credible listing notice, often brings a short burst of attention.",
+      "weight": 1.2
+    },
+    {
+      "id": "etf_flows",
+      "name": "ETF flows",
+      "description": "Spot ETF creations and redemptions show whether funds were adding or removing coins that day.",
+      "weight": 1.1
+    },
+    {
+      "id": "buzz",
+      "name": "X buzz",
+      "description": "Mentions on X are far above this coin's recent pace. Attention can fade as fast as it arrives.",
+      "weight": 1.0
+    },
+    {
+      "id": "momentum",
+      "name": "Momentum",
+      "description": "Price is moving faster than this coin's own recent habit. Speed is not a direction you can bank on.",
+      "weight": 1.0
+    },
+    {
+      "id": "sentiment",
+      "name": "Sentiment",
+      "description": "A broad mood reading such as the Fear & Greed index. It describes the room, not a single coin's future.",
+      "weight": 0.6
+    },
+    {
+      "id": "funding",
+      "name": "Funding",
+      "description": "Perpetual funding is unusually high or low, which means leveraged traders are crowded to one side.",
+      "weight": 0.8
+    },
+    {
+      "id": "order_book",
+      "name": "Order book",
+      "description": "Bids and asks near the price are lopsided. Books change quickly and can be pulled.",
+      "weight": 0.8
+    },
+    {
+      "id": "divergence",
+      "name": "Divergence",
+      "description": "One exchange's price has pulled away from the others. The gap can close, widen, or be a bad print.",
+      "weight": 0.9
+    }
+  ]
+}

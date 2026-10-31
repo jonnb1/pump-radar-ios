@@ -1,440 +1,321 @@
 // ViewModelTests.swift
-// PumpRadarTests
-//
-// Unit tests for ViewModels using mock services to avoid real network calls.
+// Board ranking, demo mode, scorecards, events, and detail sparklines.
 
 import XCTest
-import Combine
 @testable import PumpRadar
 
-// MARK: - Mock API Service
-
-/// A test double for APIServiceProtocol that returns configurable responses.
-final class MockAPIService: APIServiceProtocol {
-
-    var coinsResult: Result<PaginatedResponse<Coin>, APIError> = .success(
-        PaginatedResponse(items: Coin.sampleData, total: 3, page: 1, pageSize: 20, hasNextPage: false)
-    )
-    var coinResult: Result<Coin, APIError> = .success(.preview)
-    var alertsResult: Result<[PumpAlert], APIError> = .success([.preview, .previewRead])
-    var watchlistResult: Result<[Coin], APIError> = .success([.previewWatchlisted])
-    var voidResult: Result<Void, APIError> = .success(())
-
-    func fetchCoins(page: Int, pageSize: Int) -> AnyPublisher<PaginatedResponse<Coin>, APIError> {
-        coinsResult.publisher.eraseToAnyPublisher()
-    }
-    func fetchCoin(id: String) -> AnyPublisher<Coin, APIError> {
-        coinResult.publisher.eraseToAnyPublisher()
-    }
-    func fetchAlerts() -> AnyPublisher<[PumpAlert], APIError> {
-        alertsResult.publisher.eraseToAnyPublisher()
-    }
-    func markAlertRead(id: String) -> AnyPublisher<Void, APIError> {
-        voidResult.publisher.eraseToAnyPublisher()
-    }
-    func addToWatchlist(coinId: String) -> AnyPublisher<Void, APIError> {
-        voidResult.publisher.eraseToAnyPublisher()
-    }
-    func removeFromWatchlist(coinId: String) -> AnyPublisher<Void, APIError> {
-        voidResult.publisher.eraseToAnyPublisher()
-    }
-    func fetchWatchlist() -> AnyPublisher<[Coin], APIError> {
-        watchlistResult.publisher.eraseToAnyPublisher()
-    }
-}
-
-// MARK: - Mock Auth Service
-
-final class MockAuthService: AuthServiceProtocol {
-
-    private let userSubject: CurrentValueSubject<User?, Never>
-    var loginResult: Result<User, APIError> = .success(.preview)
-    var signUpResult: Result<User, APIError> = .success(.preview)
-    var logoutCalled = false
-
-    init(initialUser: User? = nil) {
-        userSubject = CurrentValueSubject(initialUser)
-    }
-
-    var currentUser: AnyPublisher<User?, Never> { userSubject.eraseToAnyPublisher() }
-    var isAuthenticated: Bool { userSubject.value != nil }
-
-    func login(email: String, password: String) -> AnyPublisher<User, APIError> {
-        if case .success(let user) = loginResult { userSubject.send(user) }
-        return loginResult.publisher.eraseToAnyPublisher()
-    }
-
-    func signUp(email: String, username: String, password: String) -> AnyPublisher<User, APIError> {
-        if case .success(let user) = signUpResult { userSubject.send(user) }
-        return signUpResult.publisher.eraseToAnyPublisher()
-    }
-
-    func logout() {
-        logoutCalled = true
-        userSubject.send(nil)
-    }
-
-    func refreshTokenIfNeeded() -> AnyPublisher<Void, APIError> {
-        Just(()).setFailureType(to: APIError.self).eraseToAnyPublisher()
-    }
-}
-
-// MARK: - Result + Publisher
-
-private extension Result where Failure == APIError {
-    var publisher: AnyPublisher<Success, Failure> {
-        switch self {
-        case .success(let value):
-            return Just(value).setFailureType(to: APIError.self).eraseToAnyPublisher()
-        case .failure(let error):
-            return Fail(error: error).eraseToAnyPublisher()
-        }
-    }
-}
-
-// MARK: - HomeViewModelTests
-
 @MainActor
-final class HomeViewModelTests: XCTestCase {
+final class ViewModelTests: XCTestCase {
 
-    private var mockService: MockAPIService!
-    private var viewModel: HomeViewModel!
-    private var cancellables = Set<AnyCancellable>()
-
-    override func setUp() {
-        super.setUp()
-        mockService = MockAPIService()
-        viewModel = HomeViewModel(apiService: mockService)
+    func testRankThenScoreThenSymbol() async {
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: false,
+            sampleLabel: nil,
+            marketNote: nil,
+            rows: [
+                TestSupport.row(symbol: "BBB", score: 90, rank: 2, why: "Second."),
+                TestSupport.row(symbol: "CCC", score: 10, rank: 1, why: "First."),
+                TestSupport.row(symbol: "DDD", score: 90, why: "Same score, later symbol."),
+                TestSupport.row(symbol: "AAA", score: 90, why: "Same score, earlier symbol.")
+            ]
+        ))
+        let viewModel = await makeBoard(client: client)
+        await viewModel.load()
+        XCTAssertEqual(viewModel.rows.map(\.symbol), ["CCC", "BBB", "AAA", "DDD"])
+        XCTAssertNil(viewModel.errorMessage)
     }
 
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
-    }
-
-    func testOnAppearLoadsCoins() {
-        let expectation = XCTestExpectation(description: "Coins loaded")
-        viewModel.$coins
-            .dropFirst()
-            .sink { coins in
-                XCTAssertFalse(coins.isEmpty)
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-        viewModel.onAppear()
-        wait(for: [expectation], timeout: 2)
-    }
-
-    func testSearchFiltersBySymbol() {
-        viewModel.coins = Coin.sampleData
-        viewModel.searchText = "PEPE"
-        XCTAssertEqual(viewModel.filteredCoins.count, 1)
-        XCTAssertEqual(viewModel.filteredCoins.first?.symbol, "PEPE")
-    }
-
-    func testSearchFiltersByName() {
-        viewModel.coins = Coin.sampleData
-        viewModel.searchText = "example"
-        XCTAssertEqual(viewModel.filteredCoins.count, 1)
-        XCTAssertEqual(viewModel.filteredCoins.first?.symbol, "ABC")
-    }
-
-    func testSearchEmptyReturnsAll() {
-        viewModel.coins = Coin.sampleData
-        viewModel.searchText = ""
-        XCTAssertEqual(viewModel.filteredCoins.count, Coin.sampleData.count)
-    }
-
-    func testStageFilterShowsOnlyMatchingCoins() {
-        viewModel.coins = Coin.sampleData
-        viewModel.selectedStage = .normal
-        XCTAssertTrue(viewModel.filteredCoins.allSatisfy { $0.computedStage == .normal })
-    }
-
-    func testSortByScoreDescending() {
-        viewModel.coins = Coin.sampleData
-        viewModel.sortOrder = .scoreDescending
-        let scores = viewModel.filteredCoins.map(\.score)
-        XCTAssertEqual(scores, scores.sorted(by: >))
-    }
-
-    func testSortByScoreAscending() {
-        viewModel.coins = Coin.sampleData
-        viewModel.sortOrder = .scoreAscending
-        let scores = viewModel.filteredCoins.map(\.score)
-        XCTAssertEqual(scores, scores.sorted())
-    }
-
-    func testErrorLoadsFallbackDataInDebug() {
-        mockService.coinsResult = .failure(.networkUnavailable)
-        let expectation = XCTestExpectation(description: "Error shown or fallback loaded")
-        viewModel.$errorMessage
-            .compactMap { $0 }
-            .sink { _ in expectation.fulfill() }
-            .store(in: &cancellables)
-        viewModel.onAppear()
-        wait(for: [expectation], timeout: 2)
-    }
-
-    func testRefreshResetsPage() {
-        viewModel.currentPage = 3
-        viewModel.refresh()
-        // After refresh, currentPage should be reset to 1 when response arrives
-        let expectation = XCTestExpectation(description: "Page reset")
-        viewModel.$currentPage
-            .filter { $0 == 1 }
-            .sink { _ in expectation.fulfill() }
-            .store(in: &cancellables)
-        wait(for: [expectation], timeout: 2)
-    }
-}
-
-// MARK: - CoinDetailViewModelTests
-
-@MainActor
-final class CoinDetailViewModelTests: XCTestCase {
-
-    private var mockService: MockAPIService!
-    private var viewModel: CoinDetailViewModel!
-    private var cancellables = Set<AnyCancellable>()
-
-    override func setUp() {
-        super.setUp()
-        mockService = MockAPIService()
-        viewModel = CoinDetailViewModel(coin: .preview, apiService: mockService)
-    }
-
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
-    }
-
-    func testRefreshUpdatesCoin() {
-        let updated = Coin(
-            id: "pepe", symbol: "PEPE", name: "Pepe Updated",
-            price: 0.0000015, priceChangePercent: 20.0,
-            volume: 2_000_000, volumeChangePercent: 300.0,
-            score: 85, stage: .highRisk, signalChange: 15.0,
-            reasonsFlagged: ["Updated reason"], signalHistory: [], isFavorite: false
+    func testSearchAndWatchlistFilter() async {
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: false,
+            sampleLabel: nil,
+            marketNote: "Note",
+            rows: [
+                TestSupport.row(symbol: "PEPE", score: 80, why: "Listing cluster."),
+                TestSupport.row(symbol: "LINK", score: 20, why: "Quiet baseline.")
+            ]
+        ))
+        let defaults = try? TestSupport.defaults()
+        let watchlist = WatchlistStore(defaults: defaults ?? .standard)
+        watchlist.toggle("LINK")
+        let viewModel = BoardViewModel(
+            settings: AppSettings(defaults: defaults ?? .standard),
+            watchlist: watchlist,
+            client: client,
+            alerts: RecordingScheduler()
         )
-        mockService.coinResult = .success(updated)
-        let expectation = XCTestExpectation(description: "Coin updated")
-        viewModel.$coin
-            .dropFirst()
-            .sink { coin in
-                XCTAssertEqual(coin.name, "Pepe Updated")
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-        viewModel.refresh()
-        wait(for: [expectation], timeout: 2)
+        await viewModel.load()
+        viewModel.searchText = "quiet"
+        XCTAssertEqual(viewModel.visibleRows.map(\.symbol), ["LINK"])
+        viewModel.searchText = ""
+        viewModel.watchlistOnly = true
+        XCTAssertEqual(viewModel.visibleRows.map(\.symbol), ["LINK"])
     }
 
-    func testToggleWatchlistOptimisticallyUpdates() {
-        XCTAssertFalse(viewModel.coin.isFavorite)
-        viewModel.toggleWatchlist()
-        XCTAssertTrue(viewModel.coin.isFavorite)
+    func testBlankWhyIsComposedAndProLinesStayHiddenInSimpleMode() async throws {
+        let reading = SignalReading(
+            family: "buzz",
+            name: "X mentions",
+            score: 80,
+            fired: true,
+            summary: "Mentions jumped."
+        )
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: true,
+            sampleLabel: Copy.sampleBanner,
+            marketNote: nil,
+            rows: [TestSupport.row(symbol: "WIF", score: 70, families: ["buzz"], signals: [reading], tradable: true)]
+        ))
+        let viewModel = await makeBoard(client: client)
+        await viewModel.load()
+        let row = try XCTUnwrap(viewModel.rows.first)
+        let simple = RowPresenter.make(row: row, families: viewModel.families, pro: false)
+        XCTAssertTrue(simple.why.contains("X buzz"))
+        XCTAssertTrue(simple.proLines.isEmpty)
+        XCTAssertEqual(simple.familyNames, ["X buzz"])
+        let pro = RowPresenter.make(row: row, families: viewModel.families, pro: true)
+        XCTAssertTrue(pro.proLines.contains("Passes the data filter"))
+        XCTAssertTrue(pro.proLines.contains { $0.contains("X mentions 80") })
     }
 
-    func testToggleWatchlistRevertsOnFailure() {
-        mockService.voidResult = .failure(.httpError(statusCode: 500, message: "Server error"))
-        let expectation = XCTestExpectation(description: "State reverted")
-        viewModel.toggleWatchlist()
-        XCTAssertTrue(viewModel.coin.isFavorite) // Optimistic update applied
-        viewModel.$coin
-            .dropFirst()
-            .sink { coin in
-                XCTAssertFalse(coin.isFavorite) // Reverted
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-        wait(for: [expectation], timeout: 2)
-    }
-}
-
-// MARK: - WatchlistViewModelTests
-
-@MainActor
-final class WatchlistViewModelTests: XCTestCase {
-
-    private var mockService: MockAPIService!
-    private var viewModel: WatchlistViewModel!
-    private var cancellables = Set<AnyCancellable>()
-
-    override func setUp() {
-        super.setUp()
-        mockService = MockAPIService()
-        viewModel = WatchlistViewModel(apiService: mockService)
+    func testScorecardCountsQuietFamilies() {
+        let row = TestSupport.row(symbol: "PEPE", score: 81, families: ["listings", "buzz", "momentum"])
+        let card = ScorecardBuilder.make(row: row, families: SignalFamily.builtins)
+        XCTAssertEqual(card.headline, "3 of 8 signal families fired")
+        XCTAssertEqual(card.firedNames, ["Listings", "X buzz", "Momentum"])
+        XCTAssertTrue(card.quietNames.contains("ETF flows"))
+        XCTAssertTrue(card.quietNames.contains("Funding"))
+        XCTAssertTrue(card.detail.contains("Quiet:"))
     }
 
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
+    func testEmptyFamiliesStayHonest() {
+        let card = ScorecardBuilder.make(row: TestSupport.row(symbol: "LINK", score: 22), families: [])
+        XCTAssertEqual(card.headline, "0 of 8 signal families fired")
+        XCTAssertEqual(card.detail, "Nothing looks unusual against recent baselines.")
+        let sentence = PlainEnglish.why(for: TestSupport.row(symbol: "LINK", score: 22), families: [])
+        XCTAssertTrue(sentence.contains("No signal family looks unusual"))
     }
 
-    func testLoadWatchlistPopulatesCoins() {
-        let expectation = XCTestExpectation(description: "Watchlist loaded")
-        viewModel.$watchlistCoins
-            .dropFirst()
-            .sink { coins in
-                XCTAssertFalse(coins.isEmpty)
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-        viewModel.loadWatchlist()
-        wait(for: [expectation], timeout: 2)
+    func testTradableEndpointUpgradesTheFlag() async throws {
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: false,
+            sampleLabel: nil,
+            marketNote: nil,
+            rows: [TestSupport.row(symbol: "WIF", score: 74, why: "Buzz.", tradable: false)]
+        ))
+        client.tradable = .success(TradablePage(
+            generatedAt: nil,
+            sample: false,
+            signals: [TradableSignal(symbol: "wif", score: 74, tradable: true, why: "Filter passed.")]
+        ))
+        let viewModel = await makeBoard(client: client)
+        await viewModel.load()
+        XCTAssertEqual(try XCTUnwrap(viewModel.rows.first).tradable, true)
     }
 
-    func testRemoveCoinOptimisticallyRemoves() {
-        viewModel.watchlistCoins = [.previewWatchlisted]
-        viewModel.removeCoin(.previewWatchlisted)
-        XCTAssertTrue(viewModel.watchlistCoins.isEmpty)
+    func testLiveModeWithoutURLSetsAnErrorAndKeepsTheBoard() async throws {
+        let defaults = try TestSupport.defaults()
+        let settings = AppSettings(defaults: defaults)
+        settings.demoMode = false
+        settings.apiBaseURL = "  "
+        let viewModel = BoardViewModel(
+            settings: settings,
+            watchlist: WatchlistStore(defaults: defaults),
+            alerts: RecordingScheduler()
+        )
+        await viewModel.load()
+        XCTAssertTrue(viewModel.rows.isEmpty)
+        XCTAssertTrue(viewModel.errorMessage?.contains("Demo mode") == true)
     }
 
-    func testAddCoinDoesNotDuplicate() {
-        viewModel.watchlistCoins = [.previewWatchlisted]
-        viewModel.addCoin(.previewWatchlisted)
-        XCTAssertEqual(viewModel.watchlistCoins.count, 1)
-    }
-}
-
-// MARK: - AlertsViewModelTests
-
-@MainActor
-final class AlertsViewModelTests: XCTestCase {
-
-    private var mockService: MockAPIService!
-    private var viewModel: AlertsViewModel!
-    private var cancellables = Set<AnyCancellable>()
-
-    override func setUp() {
-        super.setUp()
-        mockService = MockAPIService()
-        viewModel = AlertsViewModel(apiService: mockService)
+    func testFailedReloadKeepsPreviousRows() async {
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: false,
+            sampleLabel: nil,
+            marketNote: nil,
+            rows: [TestSupport.row(symbol: "PEPE", score: 80, why: "Still here.")]
+        ))
+        let viewModel = await makeBoard(client: client)
+        await viewModel.load()
+        client.board = .failure(RadarClientError.http(500))
+        await viewModel.load()
+        XCTAssertEqual(viewModel.rows.map(\.symbol), ["PEPE"])
+        XCTAssertEqual(viewModel.errorMessage, RadarClientError.http(500).errorDescription)
     }
 
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
+    func testWatchAlertsFireOnceAndSkipLowScores() async throws {
+        let scheduler = RecordingScheduler()
+        let defaults = try TestSupport.defaults()
+        let settings = AppSettings(defaults: defaults)
+        settings.alertsEnabled = true
+        settings.alertThreshold = 70
+        let watchlist = WatchlistStore(defaults: defaults)
+        watchlist.toggle("pepe")
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: false,
+            sampleLabel: nil,
+            marketNote: nil,
+            rows: [
+                TestSupport.row(symbol: "PEPE", score: 81, why: "Cluster.", families: ["listings", "buzz"]),
+                TestSupport.row(symbol: "LINK", score: 22, why: "Quiet.")
+            ]
+        ))
+        let viewModel = BoardViewModel(
+            settings: settings,
+            watchlist: watchlist,
+            client: client,
+            alerts: scheduler
+        )
+        await viewModel.load()
+        await viewModel.load()
+        XCTAssertEqual(scheduler.messages.count, 1)
+        let message = try XCTUnwrap(scheduler.messages.first)
+        XCTAssertEqual(message.title, "PEPE is on the board")
+        XCTAssertTrue(message.body.contains("Not financial advice"))
+        XCTAssertTrue(message.body.contains("Listings and X buzz are active"))
+        XCTAssertFalse(message.body.contains("LINK"))
     }
 
-    func testLoadAlertsPopulatesAlerts() {
-        let expectation = XCTestExpectation(description: "Alerts loaded")
-        viewModel.$alerts
-            .dropFirst()
-            .sink { alerts in
-                XCTAssertFalse(alerts.isEmpty)
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-        viewModel.loadAlerts()
-        wait(for: [expectation], timeout: 2)
+    func testDemoModeLoadsBundledSampleAndMergesWIF() async throws {
+        let defaults = try TestSupport.defaults()
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertTrue(settings.demoMode)
+        let viewModel = BoardViewModel(
+            settings: settings,
+            watchlist: WatchlistStore(defaults: defaults),
+            alerts: RecordingScheduler()
+        )
+        await viewModel.load()
+        XCTAssertTrue(viewModel.isSample)
+        XCTAssertEqual(viewModel.sampleLabel, Optional(Copy.sampleBanner))
+        XCTAssertEqual(try XCTUnwrap(viewModel.rows.first).symbol, "PEPE")
+        XCTAssertEqual(viewModel.families.count, 8)
+        let wif = try XCTUnwrap(viewModel.rows.first { $0.symbol == "WIF" })
+        XCTAssertTrue(wif.tradable)
+        let link = try XCTUnwrap(viewModel.rows.first { $0.symbol == "LINK" })
+        XCTAssertFalse(link.tradable)
+        XCTAssertTrue(viewModel.marketNote?.contains("Sample data") == true)
     }
 
-    func testMarkAsReadUpdatesLocalState() {
-        viewModel.alerts = [.preview] // isRead = false
-        viewModel.markAsRead(.preview)
-        XCTAssertTrue(viewModel.alerts.first?.isRead ?? false)
+    func testDetailFillsSparklineFromSnapshotsAndFiltersEvents() async throws {
+        let row = TestSupport.row(symbol: "TIA", score: 69, why: "Book and gap.", families: ["order_book"])
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil,
+            sample: true,
+            sampleLabel: nil,
+            marketNote: nil,
+            rows: [row]
+        ))
+        client.snapshots = [
+            SnapshotSeries(symbol: "TIA", points: [
+                SnapshotPoint(timestamp: nil, price: 5.1, score: nil),
+                SnapshotPoint(timestamp: nil, price: 5.6, score: nil)
+            ])
+        ]
+        client.events = .success(RadarEventsPage(
+            sample: true,
+            sampleLabel: nil,
+            events: [
+                RadarEvent(id: "1", kind: .orderBook, title: "TIA book", summary: "Lopsided.", symbol: "TIA"),
+                RadarEvent(id: "2", kind: .listing, title: "PEPE listing", summary: "Listed.", symbol: "PEPE")
+            ]
+        ))
+        let defaults = try TestSupport.defaults()
+        let viewModel = CoinDetailViewModel(
+            row: row,
+            settings: AppSettings(defaults: defaults),
+            watchlist: WatchlistStore(defaults: defaults),
+            client: client
+        )
+        XCTAssertTrue(viewModel.sparkline.isEmpty)
+        await viewModel.load()
+        XCTAssertEqual(viewModel.sparkline, [5.1, 5.6])
+        XCTAssertEqual(viewModel.events.compactMap(\.symbol), ["TIA"])
+        let card = viewModel.scorecard
+        XCTAssertEqual(card.firedNames, ["Order book"])
     }
 
-    func testMarkAllAsReadSetsAllRead() {
-        viewModel.alerts = [.preview, .previewRead]
-        viewModel.markAllAsRead()
-        XCTAssertTrue(viewModel.alerts.allSatisfy(\.isRead))
+    func testEventsFilterAndSort() async throws {
+        let older = RadarEvent(
+            id: "old",
+            kind: .listing,
+            title: "Old listing",
+            summary: "Earlier.",
+            symbol: "AAA",
+            occurredAt: Date(timeIntervalSince1970: 10)
+        )
+        let newer = RadarEvent(
+            id: "new",
+            kind: .buzz,
+            title: "New buzz",
+            summary: "Later.",
+            symbol: "BBB",
+            occurredAt: Date(timeIntervalSince1970: 50)
+        )
+        let client = FakeRadarClient(board: RadarBoard(
+            generatedAt: nil, sample: false, sampleLabel: nil, marketNote: nil, rows: []
+        ))
+        client.events = .success(RadarEventsPage(sample: true, sampleLabel: Copy.sampleBanner, events: [older, newer]))
+        let defaults = try TestSupport.defaults()
+        let viewModel = EventsViewModel(settings: AppSettings(defaults: defaults), client: client)
+        await viewModel.load()
+        XCTAssertEqual(viewModel.visibleEvents.map(\.id), ["new", "old"])
+        XCTAssertTrue(viewModel.isSample)
+        viewModel.filter = .listings
+        XCTAssertEqual(viewModel.visibleEvents.map(\.id), ["old"])
+        viewModel.filter = .etfFlows
+        XCTAssertTrue(viewModel.visibleEvents.isEmpty)
     }
 
-    func testUnreadCountReturnsCorrectValue() {
-        viewModel.alerts = [.preview, .previewRead] // 1 unread
-        XCTAssertEqual(viewModel.unreadCount, 1)
+    func testSettingsAndWatchlistPersist() throws {
+        let defaults = try TestSupport.defaults()
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertTrue(settings.demoMode)
+        XCTAssertFalse(settings.proMode)
+        XCTAssertEqual(settings.alertThreshold, 70)
+        settings.demoMode = false
+        settings.apiBaseURL = "https://radar.example"
+        settings.proMode = true
+        settings.alertThreshold = 85
+        let reloaded = AppSettings(defaults: defaults)
+        XCTAssertFalse(reloaded.demoMode)
+        XCTAssertEqual(reloaded.apiBaseURL, "https://radar.example")
+        XCTAssertTrue(reloaded.proMode)
+        XCTAssertEqual(reloaded.alertThreshold, 85)
+
+        let watchlist = WatchlistStore(defaults: defaults)
+        watchlist.toggle("pepe")
+        watchlist.toggle("btc")
+        watchlist.toggle("pepe")
+        let stored = WatchlistStore(defaults: defaults)
+        XCTAssertTrue(stored.contains("BTC"))
+        XCTAssertFalse(stored.contains("PEPE"))
     }
 
-    func testHasUnreadIsTrueWhenUnreadExists() {
-        viewModel.alerts = [.preview]
-        XCTAssertTrue(viewModel.hasUnread)
-    }
-}
-
-// MARK: - AuthViewModelTests
-
-@MainActor
-final class AuthViewModelTests: XCTestCase {
-
-    private var mockAuthService: MockAuthService!
-    private var viewModel: AuthViewModel!
-    private var cancellables = Set<AnyCancellable>()
-
-    override func setUp() {
-        super.setUp()
-        mockAuthService = MockAuthService()
-        viewModel = AuthViewModel(authService: mockAuthService)
+    func testPlainEnglishList() {
+        XCTAssertEqual(PlainEnglish.list([]), "")
+        XCTAssertEqual(PlainEnglish.list(["Listings"]), "Listings")
+        XCTAssertEqual(PlainEnglish.list(["Listings", "X buzz"]), "Listings and X buzz")
+        XCTAssertEqual(
+            PlainEnglish.list(["Listings", "X buzz", "Momentum"]),
+            "Listings, X buzz, and Momentum"
+        )
     }
 
-    override func tearDown() {
-        cancellables.removeAll()
-        super.tearDown()
-    }
-
-    func testLoginFormValidWithValidCredentials() {
-        viewModel.email = "user@example.com"
-        viewModel.password = "securePass123"
-        XCTAssertTrue(viewModel.isLoginFormValid)
-    }
-
-    func testLoginFormInvalidWithShortPassword() {
-        viewModel.email = "user@example.com"
-        viewModel.password = "short"
-        XCTAssertFalse(viewModel.isLoginFormValid)
-    }
-
-    func testLoginFormInvalidWithEmptyEmail() {
-        viewModel.email = ""
-        viewModel.password = "securePass123"
-        XCTAssertFalse(viewModel.isLoginFormValid)
-    }
-
-    func testSignUpFormInvalidWhenPasswordsMismatch() {
-        viewModel.email = "user@example.com"
-        viewModel.username = "user"
-        viewModel.password = "password123"
-        viewModel.confirmPassword = "different123"
-        XCTAssertFalse(viewModel.isSignUpFormValid)
-    }
-
-    func testSignUpFormValidWithMatchingPasswords() {
-        viewModel.email = "user@example.com"
-        viewModel.username = "user"
-        viewModel.password = "password123"
-        viewModel.confirmPassword = "password123"
-        XCTAssertTrue(viewModel.isSignUpFormValid)
-    }
-
-    func testLoginSuccessSetsAuthenticated() {
-        let expectation = XCTestExpectation(description: "Authenticated")
-        viewModel.$isAuthenticated
-            .filter { $0 }
-            .sink { _ in expectation.fulfill() }
-            .store(in: &cancellables)
-        viewModel.email = "user@example.com"
-        viewModel.password = "password123"
-        viewModel.login()
-        wait(for: [expectation], timeout: 2)
-    }
-
-    func testLoginFailureSetsErrorMessage() {
-        mockAuthService.loginResult = .failure(.httpError(statusCode: 401, message: "Invalid credentials"))
-        let expectation = XCTestExpectation(description: "Error set")
-        viewModel.$errorMessage
-            .compactMap { $0 }
-            .sink { _ in expectation.fulfill() }
-            .store(in: &cancellables)
-        viewModel.email = "user@example.com"
-        viewModel.password = "wrongpassword"
-        viewModel.login()
-        wait(for: [expectation], timeout: 2)
-    }
-
-    func testLogoutCallsService() {
-        viewModel.logout()
-        XCTAssertTrue(mockAuthService.logoutCalled)
+    private func makeBoard(client: FakeRadarClient) async -> BoardViewModel {
+        let defaults = try? TestSupport.defaults()
+        let resolved = defaults ?? .standard
+        return BoardViewModel(
+            settings: AppSettings(defaults: resolved),
+            watchlist: WatchlistStore(defaults: resolved),
+            client: client,
+            alerts: RecordingScheduler()
+        )
     }
 }

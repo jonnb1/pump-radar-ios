@@ -1,70 +1,42 @@
 // Constants.swift
-// PumpRadar
-//
-// Central location for all app-wide constants including API configuration,
-// notification identifiers, and UserDefaults keys.
+// Shared copy and storage keys. The app is a watchlist: it never trades.
 
 import Foundation
 
-/// App-wide constants organised by category.
-enum Constants {
-    // MARK: - API
+enum Copy {
+    static let disclaimer = """
+    Not financial advice. Pump Radar is a watchlist. It explains unusual market \
+    readings in plain English. It does not buy, sell, or connect to a wallet, \
+    and a high score is not a promise of profit.
+    """
 
-    enum API {
-        /// Base URL for the Pump Radar backend. Override in the environment
-        /// by setting PUMP_RADAR_API_BASE_URL before building.
-        static let baseURL: String = {
-            if let url = ProcessInfo.processInfo.environment["PUMP_RADAR_API_BASE_URL"] {
-                return url
-            }
-            return "https://api.pump-radar.io/v1"
-        }()
+    static let sampleBanner = "Sample data — not live market readings"
 
-        static let timeoutInterval: TimeInterval = 30
-    }
+    static let about = """
+    Pump Radar is a one-screen signal board. Each row is a coin, a score, the \
+    signal families that look unusual, and a sentence that says why. You can \
+    watch a coin on this iPhone. Nothing in the app places an order.
+    """
 
-    // MARK: - UserDefaults
+    static let dataFilterNote = """
+    The server marked this coin as tradable, meaning it cleared a liquidity and \
+    data-quality filter. That is not a recommendation to trade.
+    """
+}
 
-    enum UserDefaultsKeys {
-        static let watchlistSymbols = "watchlistSymbols"
-        static let authToken = "authToken"
-        static let volumeThreshold = "volumeThreshold"
-        static let priceThreshold = "priceThreshold"
-        static let socialThreshold = "socialThreshold"
-    }
+enum StorageKey {
+    static let demoMode = "demoMode"
+    static let apiBaseURL = "apiBaseURL"
+    static let proMode = "proMode"
+    static let alertsEnabled = "alertsEnabled"
+    static let alertThreshold = "alertThreshold"
+    static let watchlistSymbols = "watchlistSymbols"
+}
 
-    // MARK: - Keychain
-
-    enum Keychain {
-        static let authTokenKey = "com.pumpradar.authToken"
-        static let refreshTokenKey = "com.pumpradar.refreshToken"
-    }
-
-    // MARK: - Notifications
-
-    enum NotificationCategories {
-        static let pumpAlert = "PUMP_ALERT"
-    }
-
-    enum NotificationActions {
-        static let viewDetails = "VIEW_DETAILS"
-        static let dismiss = "DISMISS"
-    }
-
-    // MARK: - UI
-
-    enum UI {
-        static let cornerRadius: CGFloat = 12
-        static let cardPadding: CGFloat = 16
-        static let animationDuration: Double = 0.3
-    }
-
-    // MARK: - Scoring
-
-    enum Scoring {
-        /// Score thresholds that determine the activity stage label.
-        static let earlyThreshold = 30
-        static let activeThreshold = 60
-        static let highRiskThreshold = 80
-    }
+enum RadarRoute {
+    static let board = "radar/board"
+    static let events = "radar/events"
+    static let families = "radar/families"
+    static let snapshots = "radar/snapshots"
+    static let tradable = "signals/tradable"
 }
