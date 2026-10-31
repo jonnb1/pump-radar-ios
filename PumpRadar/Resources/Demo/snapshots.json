@@ -1,0 +1,26 @@
+{
+  "sample": true,
+  "sample_label": "Sample data — not live market readings",
+  "snapshots": [
+    {
+      "symbol": "TIA",
+      "points": [
+        {"timestamp": "2026-10-30T15:00:00Z", "price": 5.10, "score": 28},
+        {"timestamp": "2026-10-30T19:00:00Z", "price": 5.18, "score": 31},
+        {"timestamp": "2026-10-31T03:00:00Z", "price": 5.05, "score": 36},
+        {"timestamp": "2026-10-31T07:00:00Z", "price": 5.22, "score": 44},
+        {"timestamp": "2026-10-31T11:00:00Z", "price": 5.41, "score": 58},
+        {"timestamp": "2026-10-31T15:00:00Z", "price": 5.62, "score": 69}
+      ]
+    },
+    {
+      "symbol": "LINK",
+      "points": [
+        {"timestamp": "2026-10-30T15:00:00Z", "price": 12.02, "score": 18},
+        {"timestamp": "2026-10-30T21:00:00Z", "price": 12.08, "score": 19},
+        {"timestamp": "2026-10-31T09:00:00Z", "price": 11.96, "score": 21},
+        {"timestamp": "2026-10-31T15:00:00Z", "price": 12.15, "score": 22}
+      ]
+    }
+  ]
+}

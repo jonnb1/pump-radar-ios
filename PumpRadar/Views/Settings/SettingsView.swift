@@ -1,146 +1,117 @@
 // SettingsView.swift
-// PumpRadar
-//
-// Allows users to configure detection thresholds, manage their account,
-// and log out.
+// Demo mode, the API base URL, Simple or Pro, and the disclaimer.
 
 import SwiftUI
 
-// MARK: - SettingsView
-
 struct SettingsView: View {
-
-    @ObservedObject var authViewModel: AuthViewModel
-    @AppStorage(Constants.UserDefaultsKeys.volumeThreshold) var volumeThreshold: Double = 2.0
-    @AppStorage(Constants.UserDefaultsKeys.priceThreshold) var priceThreshold: Double = 2.0
-    @AppStorage(Constants.UserDefaultsKeys.socialThreshold) var socialThreshold: Double = 2.0
-    @State private var showLogoutConfirmation = false
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                if let user = authViewModel.currentUser {
-                    accountSection(user: user)
-                }
-                detectionSection
+                dataSection
+                modeSection
+                alertSection
+                familySection
                 aboutSection
-                logoutSection
             }
             .navigationTitle("Settings")
         }
     }
 
-    // MARK: - Sections
-
-    private func accountSection(user: User) -> some View {
-        Section(header: Text("Account")) {
-            HStack {
-                Image(systemName: "person.circle.fill")
-                    .font(.largeTitle)
-                    .foregroundColor(.accentColor)
-                VStack(alignment: .leading) {
-                    Text(user.username)
-                        .font(.headline)
-                    Text(user.email)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(.vertical, 4)
+    private var dataSection: some View {
+        Section {
+            Toggle("Demo mode", isOn: $settings.demoMode)
+            TextField("API base URL", text: $settings.apiBaseURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+        } header: {
+            Text("Data")
+        } footer: {
+            Text(dataFooter)
         }
     }
 
-    private var detectionSection: some View {
-        Section(
-            header: Text("Detection Thresholds"),
-            footer: Text("Adjust these values to tune sensitivity. Higher values make the detector more selective and reduce false positives.")
-        ) {
-            thresholdRow(
-                label: "Volume",
-                icon: "chart.bar.fill",
-                value: $volumeThreshold
-            )
-            thresholdRow(
-                label: "Price",
-                icon: "dollarsign.circle",
-                value: $priceThreshold
-            )
-            thresholdRow(
-                label: "Social Mentions",
-                icon: "person.2.wave.2",
-                value: $socialThreshold
-            )
+    private var modeSection: some View {
+        Section {
+            Picker("Mode", selection: $settings.proMode) {
+                Text("Simple").tag(false)
+                Text("Pro").tag(true)
+            }
+            .pickerStyle(.segmented)
+            Text(settings.proMode
+                ? "Pro adds prices, per-family scores, quiet families, and the data-quality filter."
+                : "Simple keeps each row to a score, the families that fired, and one sentence.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Reading level")
+        }
+    }
+
+    private var alertSection: some View {
+        Section {
+            Toggle("Notify on this iPhone", isOn: $settings.alertsEnabled)
+                .onChange(of: settings.alertsEnabled) { _, enabled in
+                    if enabled {
+                        Task { _ = await LocalAlertScheduler.requestAuthorization() }
+                    }
+                }
+            Stepper(value: $settings.alertThreshold, in: 40...95, step: 5) {
+                Text("When a watched score reaches \(settings.alertThreshold)")
+            }
+        } header: {
+            Text("Local alerts")
+        } footer: {
+            Text("Optional. The alert stays on this iPhone when a coin you watch crosses the score. There is no remote push.")
+        }
+    }
+
+    private var familySection: some View {
+        Section {
+            ForEach(SignalFamily.builtins) { family in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(family.name)
+                        .font(.headline)
+                    Text(family.explanation)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 4)
+            }
+        } header: {
+            Text("What the families mean")
         }
     }
 
     private var aboutSection: some View {
-        Section(header: Text("About")) {
-            LabeledContent("Version", value: appVersion)
-            LabeledContent("Build", value: buildNumber)
-            Link(destination: URL(string: "https://pump-radar.io/privacy")!) {
-                Label("Privacy Policy", systemImage: "lock.shield")
-            }
-            Link(destination: URL(string: "https://pump-radar.io/terms")!) {
-                Label("Terms of Service", systemImage: "doc.text")
-            }
-        }
-    }
-
-    private var logoutSection: some View {
         Section {
-            Button(role: .destructive) {
-                showLogoutConfirmation = true
-            } label: {
-                HStack {
-                    Spacer()
-                    Text("Sign Out")
-                        .fontWeight(.semibold)
-                    Spacer()
-                }
-            }
-        }
-        .confirmationDialog(
-            "Are you sure you want to sign out?",
-            isPresented: $showLogoutConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Sign Out", role: .destructive) { authViewModel.logout() }
-            Button("Cancel", role: .cancel) {}
+            Text(Copy.about)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(Copy.disclaimer)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Version \(appVersion)")
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("About")
         }
     }
 
-    // MARK: - Helpers
-
-    private func thresholdRow(label: String, icon: String, value: Binding<Double>) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Label(label, systemImage: icon)
-                Spacer()
-                Text("\(value.wrappedValue, specifier: "%.1f")× baseline")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            Slider(value: value, in: 1...10, step: 0.5)
-        }
-        .padding(.vertical, 4)
+    private var dataFooter: String {
+        """
+        Demo mode uses sample JSON bundled in the app and labels every screen. \
+        Turn it off and paste a server URL when the API is hosted. Paths used: \
+        /radar/board, /radar/events, /radar/families, /radar/snapshots, and /signals/tradable.
+        """
     }
 
     private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-    }
-
-    private var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
     }
 }
-
-// MARK: - Preview
-
-#if DEBUG
-#Preview {
-    SettingsView(authViewModel: {
-        let vm = AuthViewModel()
-        return vm
-    }())
-}
-#endif

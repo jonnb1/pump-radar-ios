@@ -1,107 +1,100 @@
-# ios.yml
-# GitHub Actions CI/CD workflow for the PumpRadar iOS application.
+# Build Pump Radar on a GitHub-hosted Mac, then optionally upload to TestFlight.
 #
-# Workflow steps:
-#   1. Checkout source code
-#   2. Select the target Xcode version
-#   3. Install XcodeGen and generate the .xcodeproj
-#   4. Run SwiftLint for code quality checks
-#   5. Build the app (Debug scheme, no-code-signing)
-#   6. Run unit tests
-#   7. Upload test results as artifacts
+# The Build & Test job does not sign the app. It is the check that must stay green.
+#
+# The TestFlight job runs on a manual "Run workflow" and on pushes to main.
+# It uploads only when these repository secrets exist:
+#   APP_STORE_CONNECT_KEY_ID
+#   APP_STORE_CONNECT_ISSUER_ID
+#   APP_STORE_CONNECT_KEY_P8
+#   APPLE_TEAM_ID
+# Optional:
+#   PRODUCT_BUNDLE_IDENTIFIER  (defaults to com.pumpradar.ios)
+# See the README for where to tap on iPhone Safari to create each value.
 
 name: iOS CI
 
 on:
   push:
-    branches: [main, develop, "feature/**", "bugfix/**"]
+    branches: [main, "cursor/**"]
   pull_request:
-    branches: [main, develop]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Restrict GITHUB_TOKEN permissions to the minimum required
 permissions:
   contents: read
 
 env:
-  XCODE_VERSION: "15.2"
-  SCHEME: PumpRadar
-  DERIVED_DATA: DerivedData
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_INSTALL_CLEANUP: "1"
 
 jobs:
-  # ──────────────────────────────────────────────────────────
-  # Lint
-  # ──────────────────────────────────────────────────────────
-  lint:
-    name: SwiftLint
-    runs-on: macos-14
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run SwiftLint
-        run: |
-          if which swiftlint > /dev/null; then
-            swiftlint lint --reporter github-actions-logging
-          else
-            brew install swiftlint
-            swiftlint lint --reporter github-actions-logging
-          fi
-
-  # ──────────────────────────────────────────────────────────
-  # Build & Test
-  # ──────────────────────────────────────────────────────────
   build-and-test:
     name: Build & Test
-    runs-on: macos-14
-    needs: lint
+    runs-on: macos-15
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode ${{ env.XCODE_VERSION }}
-        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer
-
-      - name: Install XcodeGen
+      - name: Select Xcode
         run: |
-          if ! command -v xcodegen &> /dev/null; then
+          set -euo pipefail
+          SELECTED=""
+          for candidate in \
+            /Applications/Xcode_16.4.app \
+            /Applications/Xcode_16.4.0.app \
+            /Applications/Xcode_26.4.1.app \
+            /Applications/Xcode_26.4.app \
+            /Applications/Xcode.app
+          do
+            if [ -d "$candidate" ]; then
+              sudo xcode-select -s "$candidate/Contents/Developer"
+              SELECTED="$candidate"
+              break
+            fi
+          done
+          echo "Selected ${SELECTED:-default}"
+          xcodebuild -version
+
+      - name: Install XcodeGen and SwiftLint
+        run: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
             brew install xcodegen
           fi
+          if ! command -v swiftlint >/dev/null 2>&1; then
+            brew install swiftlint
+          fi
 
-      - name: Generate Xcode project
+      - name: SwiftLint
+        run: swiftlint lint --reporter github-actions-logging
+
+      - name: Generate the Xcode project
         run: xcodegen generate
 
-      - name: Resolve Swift packages
+      - name: Choose a simulator
+        id: simulator
         run: |
-          xcodebuild -resolvePackageDependencies \
-            -scheme "${{ env.SCHEME }}" \
-            -derivedDataPath "${{ env.DERIVED_DATA }}"
+          set -euo pipefail
+          UDID="$(python3 scripts/select-simulator.py)"
+          echo "udid=${UDID}" >> "$GITHUB_OUTPUT"
 
-      - name: Build
+      - name: Build and test
         run: |
-          xcodebuild build \
-            -scheme "${{ env.SCHEME }}" \
-            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
-            -derivedDataPath "${{ env.DERIVED_DATA }}" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            | xcpretty --color --simple && exit "${PIPESTATUS[0]}"
-
-      - name: Run tests
-        run: |
+          set -euo pipefail
           xcodebuild test \
-            -scheme "${{ env.SCHEME }}" \
-            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
-            -derivedDataPath "${{ env.DERIVED_DATA }}" \
+            -project PumpRadar.xcodeproj \
+            -scheme PumpRadar \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -derivedDataPath DerivedData \
             -resultBundlePath TestResults/results.xcresult \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            | xcpretty --color --simple && exit "${PIPESTATUS[0]}"
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
       - name: Upload test results
         if: always()
@@ -111,10 +104,69 @@ jobs:
           path: TestResults/
           retention-days: 14
 
-      - name: Upload derived data (on failure)
-        if: failure()
+  testflight:
+    name: TestFlight
+    runs-on: macos-15
+    timeout-minutes: 60
+    needs: build-and-test
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          for candidate in \
+            /Applications/Xcode_16.4.app \
+            /Applications/Xcode_16.4.0.app \
+            /Applications/Xcode_26.4.1.app \
+            /Applications/Xcode_26.4.app \
+            /Applications/Xcode.app
+          do
+            if [ -d "$candidate" ]; then
+              sudo xcode-select -s "$candidate/Contents/Developer"
+              break
+            fi
+          done
+          xcodebuild -version
+
+      - name: Check App Store Connect secrets
+        id: secrets
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEY_ID" ] || [ -z "$ISSUER" ] || [ -z "$P8" ] || [ -z "$TEAM" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### TestFlight upload skipped"
+              echo "The signing secrets are not on this repository yet."
+              echo "Add them from the README, then run **iOS CI** again from the Actions tab."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "### Signing secrets are present. Archiving for TestFlight." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Archive and upload
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PRODUCT_BUNDLE_IDENTIFIER: ${{ secrets.PRODUCT_BUNDLE_IDENTIFIER }}
+        run: bash scripts/testflight.sh
+
+      - name: Upload the IPA
+        if: always() && steps.secrets.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: derived-data-${{ github.run_number }}
-          path: ${{ env.DERIVED_DATA }}/
-          retention-days: 3
+          name: PumpRadar-ipa-${{ github.run_number }}
+          path: build/export/*.ipa
+          retention-days: 14

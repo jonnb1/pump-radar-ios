@@ -1,0 +1,258 @@
+{
+  "generated_at": "2026-10-31T15:00:00Z",
+  "sample": true,
+  "sample_label": "Sample data — not live market readings",
+  "market_note": "Sample data for trying the app before a server is connected. The coins, scores, and sentences below are invented.",
+  "rows": [
+    {
+      "asset_id": "pepe",
+      "symbol": "PEPE",
+      "name": "Pepe",
+      "score": 81,
+      "rank": 1,
+      "price": 0.00001234,
+      "price_change_24h_pct": 18.4,
+      "why": "A new listing, a jump in X mentions, and a faster-than-usual price move are all active together. That cluster is why the score is high. It is not a forecast that the move continues.",
+      "families_fired": ["listings", "buzz", "momentum"],
+      "tradable": true,
+      "sparkline": [0.0000094, 0.0000096, 0.0000095, 0.0000099, 0.0000104, 0.0000102, 0.0000111, 0.0000118, 0.0000121, 0.00001234],
+      "signals": [
+        {
+          "family": "listings",
+          "name": "New spot listing",
+          "score": 88,
+          "fired": true,
+          "summary": "A major spot venue listed PEPE about six hours ago in this sample.",
+          "metrics": [
+            {"label": "Hours since listing", "value": "6"}
+          ]
+        },
+        {
+          "family": "buzz",
+          "name": "X mentions",
+          "score": 84,
+          "fired": true,
+          "summary": "Mentions are about five times this coin's usual day in the sample.",
+          "metrics": [
+            {"label": "Versus 7-day pace", "value": "5×"}
+          ]
+        },
+        {
+          "family": "momentum",
+          "name": "Price momentum",
+          "score": 76,
+          "fired": true,
+          "summary": "The sample price is up 18% in 24 hours, well above this coin's recent daily habit.",
+          "metrics": [
+            {"label": "24h move", "value": "+18.4%"},
+            {"label": "Usual daily move", "value": "±6%"}
+          ]
+        }
+      ]
+    },
+    {
+      "asset_id": "wif",
+      "symbol": "WIF",
+      "name": "dogwifhat",
+      "score": 74,
+      "rank": 2,
+      "price": 2.41,
+      "price_change_24h_pct": 11.2,
+      "why": "X mentions spiked and price is moving faster than usual. No listing or ETF reading is active, so the score is high but narrower than a three-family cluster.",
+      "families_fired": ["buzz", "momentum"],
+      "tradable": false,
+      "sparkline": [2.05, 2.08, 2.02, 2.11, 2.18, 2.16, 2.24, 2.33, 2.38, 2.41],
+      "signals": [
+        {
+          "family": "buzz",
+          "name": "X mentions",
+          "score": 80,
+          "fired": true,
+          "summary": "Sample mentions are about four times the past week."
+        },
+        {
+          "family": "momentum",
+          "name": "Price momentum",
+          "score": 70,
+          "fired": true,
+          "summary": "Sample price is up 11% in 24 hours."
+        }
+      ]
+    },
+    {
+      "asset_id": "tia",
+      "symbol": "TIA",
+      "name": "Celestia",
+      "score": 69,
+      "rank": 3,
+      "price": 5.62,
+      "price_change_24h_pct": 7.4,
+      "why": "The order book is lopsided and one exchange is priced away from the others. Those two market-structure readings fired. Social buzz did not.",
+      "families_fired": ["order_book", "divergence"],
+      "tradable": false,
+      "sparkline": [],
+      "signals": [
+        {
+          "family": "order_book",
+          "name": "Book imbalance",
+          "score": 72,
+          "fired": true,
+          "summary": "In the sample, bids outweigh asks by about 1.8× within 2% of the price.",
+          "metrics": [
+            {"label": "Bid versus ask", "value": "1.8×"}
+          ]
+        },
+        {
+          "family": "divergence",
+          "name": "Cross-exchange gap",
+          "score": 66,
+          "fired": true,
+          "summary": "One venue in the sample is about 1.4% above the median of the others.",
+          "metrics": [
+            {"label": "Gap versus median", "value": "1.4%"}
+          ]
+        }
+      ]
+    },
+    {
+      "asset_id": "btc",
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "score": 62,
+      "rank": 4,
+      "price": 67240,
+      "price_change_24h_pct": 1.8,
+      "why": "Spot Bitcoin ETFs had a large inflow day in this sample, while price momentum is only mildly above its recent pace. The score stays moderate because most other families are quiet.",
+      "families_fired": ["etf_flows", "momentum"],
+      "tradable": true,
+      "sparkline": [65800, 66120, 65940, 66410, 66680, 66550, 66920, 67040, 67110, 67240],
+      "signals": [
+        {
+          "family": "etf_flows",
+          "name": "Spot ETF flow",
+          "score": 74,
+          "fired": true,
+          "summary": "Sample flow day: funds added bitcoin. One day of inflows does not say what tomorrow does.",
+          "metrics": [
+            {"label": "Sample net flow", "value": "Inflow day"}
+          ]
+        },
+        {
+          "family": "momentum",
+          "name": "Price momentum",
+          "score": 48,
+          "fired": true,
+          "summary": "Sample price is up 1.8% in 24 hours, only a little faster than usual."
+        },
+        {
+          "family": "order_book",
+          "name": "Book imbalance",
+          "score": 22,
+          "fired": false,
+          "summary": "The sample book looks ordinary, so this family did not fire."
+        }
+      ]
+    },
+    {
+      "asset_id": "eth",
+      "symbol": "ETH",
+      "name": "Ether",
+      "score": 55,
+      "rank": 5,
+      "price": 3185,
+      "price_change_24h_pct": -0.6,
+      "why": "ETF flow was an outflow day and perpetual funding is elevated. Price momentum itself is ordinary, so the score reflects those two readings rather than a price spike.",
+      "families_fired": ["etf_flows", "funding"],
+      "tradable": false,
+      "sparkline": [3210, 3204, 3196, 3222, 3214, 3190, 3178, 3188, 3192, 3185],
+      "signals": [
+        {
+          "family": "etf_flows",
+          "name": "Spot ETF flow",
+          "score": 61,
+          "fired": true,
+          "summary": "Sample flow day: funds removed ether. Outflows are shown, not hidden."
+        },
+        {
+          "family": "funding",
+          "name": "Perpetual funding",
+          "score": 64,
+          "fired": true,
+          "summary": "Sample funding is 0.08%, which is crowded compared with this coin's recent weeks.",
+          "metrics": [
+            {"label": "Funding", "value": "0.08%"},
+            {"label": "Recent habit", "value": "0.01%"}
+          ]
+        }
+      ]
+    },
+    {
+      "asset_id": "fet",
+      "symbol": "FET",
+      "name": "Artificial Superintelligence Alliance",
+      "score": 48,
+      "rank": 6,
+      "price": 1.42,
+      "price_change_24h_pct": 4.1,
+      "why": "Broad sentiment is fearful and this coin's own momentum is only mildly warm. Neither reading is extreme, so the score sits in the middle.",
+      "families_fired": ["sentiment", "momentum"],
+      "tradable": false,
+      "sparkline": [1.30, 1.32, 1.31, 1.34, 1.36, 1.35, 1.38, 1.40, 1.41, 1.42],
+      "signals": [
+        {
+          "family": "sentiment",
+          "name": "Fear and Greed",
+          "score": 58,
+          "fired": true,
+          "summary": "The sample Fear & Greed index is 28, which is Fear. It describes the whole market, not this coin alone.",
+          "metrics": [
+            {"label": "Index", "value": "28 Fear"}
+          ]
+        },
+        {
+          "family": "momentum",
+          "name": "Price momentum",
+          "score": 42,
+          "fired": true,
+          "summary": "Sample price is up 4% in 24 hours, a modest move for this coin."
+        }
+      ]
+    },
+    {
+      "asset_id": "sol",
+      "symbol": "SOL",
+      "name": "Solana",
+      "score": 36,
+      "rank": 7,
+      "price": 168.2,
+      "price_change_24h_pct": 2.4,
+      "why": "Only price momentum is even slightly warm, and it did not clear the line the other families use. The score stays low.",
+      "families_fired": [],
+      "tradable": false,
+      "sparkline": [162.0, 163.4, 161.8, 164.2, 165.0, 164.4, 166.1, 167.0, 167.6, 168.2],
+      "signals": [
+        {
+          "family": "momentum",
+          "name": "Price momentum",
+          "score": 36,
+          "fired": false,
+          "summary": "Sample price is up 2.4% in 24 hours. That is inside this coin's recent habit, so the family stays quiet."
+        }
+      ]
+    },
+    {
+      "asset_id": "link",
+      "symbol": "LINK",
+      "name": "Chainlink",
+      "score": 22,
+      "rank": 8,
+      "price": 12.15,
+      "price_change_24h_pct": 0.4,
+      "why": "None of the eight families looks unusual. The score stays low because today's sample readings are close to this coin's recent baseline.",
+      "families_fired": [],
+      "tradable": false,
+      "sparkline": [],
+      "signals": []
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "sample": true,
+  "sample_label": "Sample data — not live market readings",
+  "generated_at": "2026-10-31T15:00:00Z",
+  "signals": [
+    {
+      "symbol": "PEPE",
+      "asset_id": "pepe",
+      "score": 81,
+      "tradable": true,
+      "why": "Passed the liquidity and data-quality filter. This is not a recommendation to trade.",
+      "families": ["listings", "buzz", "momentum"]
+    },
+    {
+      "symbol": "WIF",
+      "asset_id": "wif",
+      "score": 74,
+      "tradable": true,
+      "why": "Passed the liquidity and data-quality filter. This is not a recommendation to trade.",
+      "families": ["buzz", "momentum"]
+    },
+    {
+      "symbol": "BTC",
+      "asset_id": "btc",
+      "score": 62,
+      "tradable": true,
+      "why": "Passed the liquidity and data-quality filter. This is not a recommendation to trade.",
+      "families": ["etf_flows", "momentum"]
+    }
+  ]
+}

@@ -1,37 +1,48 @@
 name: PumpRadar
 options:
-  bundleIdPrefix: io.pump-radar
+  bundleIdPrefix: com.pumpradar
   deploymentTarget:
-    iOS: "15.0"
-  xcodeVersion: "15.0"
-  generateEmptyDirectories: true
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
 
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
-    MARKETING_VERSION: "1.0.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    PRODUCT_BUNDLE_IDENTIFIER: io.pump-radar.app
-    DEVELOPMENT_TEAM: ""
+    TARGETED_DEVICE_FAMILY: "1"
     SWIFT_STRICT_CONCURRENCY: minimal
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    CODE_SIGN_STYLE: Automatic
 
 targets:
   PumpRadar:
     type: application
     platform: iOS
-    deploymentTarget: "15.0"
+    deploymentTarget: "17.0"
     sources:
       - path: PumpRadar
         excludes:
           - "**/*.md"
+          - Resources/Info.plist
+          - Resources/Demo
+          - Resources/Demo/**
+      - path: PumpRadar/Resources/Demo
+        buildPhase: resources
     settings:
       base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pumpradar.ios
         INFOPLIST_FILE: PumpRadar/Resources/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: io.pump-radar.app
+        GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+        DEVELOPMENT_TEAM: ""
     scheme:
       testTargets:
         - PumpRadarTests
@@ -39,12 +50,13 @@ targets:
   PumpRadarTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "15.0"
+    deploymentTarget: "17.0"
     sources:
       - path: PumpRadarTests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.pump-radar.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.pumpradar.tests
+        GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: $(TEST_HOST)
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/PumpRadar.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PumpRadar
     dependencies:

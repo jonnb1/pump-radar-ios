@@ -40,6 +40,11 @@ Podfile.lock
 # ── Carthage ────────────────────────────────────────────────
 Carthage/Build/
 
+# ── Signing secrets (never commit) ──────────────────────────
+private_keys/
+*.p8
+AuthKey_*.p8
+
 # ── fastlane ────────────────────────────────────────────────
 fastlane/report.xml
 fastlane/Preview.html
